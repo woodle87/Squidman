@@ -1,8 +1,7 @@
-// Ragdoll Sword Duel - Improved Wall Sticking Prevention, Player is Red
+// Ragdoll Sword Duel - Stable Physics, Player is Red, Bot is Blue
 
 const { Engine, Render, Runner, World, Bodies, Body, Constraint, Composite, Events, Vector } = Matter;
 
-// Game setup
 const width = 900;
 const height = 600;
 const canvas = document.getElementById('gameCanvas');
@@ -11,22 +10,17 @@ const engine = Engine.create();
 const world = engine.world;
 engine.gravity.y = 0.7; // Less gravity for floatier movement
 
-// Wall/ground/roof options for less sticking
+// More stable physics for walls/ground/roof
 const staticPhysicsOpts = {
   isStatic: true,
-  restitution: 0.25,
-  friction: 0.8,
-  frictionStatic: 1.0,
-  slop: 0.8,
+  restitution: 0.08, // Low bounce
+  friction: 0.6,
+  frictionStatic: 0.8,
+  slop: 0.1, // Slight buffer to prevent sticking, but not too large
   render: { fillStyle: "#666" }
 };
-// Roof is yellow and visible
 const roofPhysicsOpts = {
-  isStatic: true,
-  restitution: 0.25,
-  friction: 0.8,
-  frictionStatic: 1.0,
-  slop: 0.8,
+  ...staticPhysicsOpts,
   render: { fillStyle: "#e0e048" }
 };
 
@@ -36,9 +30,8 @@ const leftWall = Bodies.rectangle(0, height / 2, 40, height, staticPhysicsOpts);
 const rightWall = Bodies.rectangle(width, height / 2, 40, height, staticPhysicsOpts);
 World.add(world, [ground, roof, leftWall, rightWall]);
 
-// Helper: create a ragdoll with sword
 function createRagdoll(x, y, color = "#fff", swordColor = "#ff0") {
-  const bodyOpts = { restitution: 0.25, friction: 0.7, frictionStatic: 1.0, slop: 0.8, render: { fillStyle: color } };
+  const bodyOpts = { restitution: 0.08, friction: 0.5, frictionStatic: 0.8, slop: 0.1, render: { fillStyle: color } };
   const head = Bodies.circle(x, y - 70, 18, bodyOpts);
   const torso = Bodies.rectangle(x, y - 30, 16, 48, { ...bodyOpts, chamfer: { radius: 8 } });
   const upperArmL = Bodies.rectangle(x - 22, y - 40, 32, 10, { ...bodyOpts, chamfer: { radius: 5 } });
@@ -56,7 +49,7 @@ function createRagdoll(x, y, color = "#fff", swordColor = "#ff0") {
 
   // Sword: attached to right hand (handR)
   const sword = Bodies.rectangle(x + 76, y - 40, 60, 8,
-    { density: 0.005, chamfer: { radius: 2 }, restitution: 0.25, friction: 0.7, slop: 0.8, render: { fillStyle: swordColor } });
+    { density: 0.005, chamfer: { radius: 2 }, restitution: 0.08, friction: 0.5, slop: 0.1, render: { fillStyle: swordColor } });
   const swordConstraint = Constraint.create({
     bodyA: handR,
     pointA: { x: 6, y: 0 },
@@ -88,7 +81,6 @@ function createRagdoll(x, y, color = "#fff", swordColor = "#ff0") {
     swordConstraint
   ];
 
-  // Composite
   const ragdoll = Composite.create({ bodies: parts, constraints: constraints });
   World.add(world, ragdoll);
 
@@ -114,9 +106,9 @@ function createRagdoll(x, y, color = "#fff", swordColor = "#ff0") {
   };
 }
 
-// Player (red) and bot (orange)
+// Player (red) and bot (blue)
 const player = createRagdoll(180, height - 120, "#f44", "#fff");
-const bot = createRagdoll(width - 180, height - 120, "#fa4", "#ff2222");
+const bot = createRagdoll(width - 180, height - 120, "#36f", "#ff2222");
 
 // Health
 let playerHealth = 100;
@@ -143,7 +135,6 @@ canvas.addEventListener('mousemove', e => {
 let dashCooldown = 0;
 let dashCooldownTime = 90;
 
-// Move player ragdoll
 Events.on(engine, 'beforeUpdate', function () {
   // Move left/right (A/D)
   if (keys['a']) {
@@ -155,7 +146,6 @@ Events.on(engine, 'beforeUpdate', function () {
 
   // Jump (W) from any body part closest to mouse, any time
   if (keys['w']) {
-    // Find the closest body part to the mouse
     let closest = player.allBodyParts[0];
     let closestDist = Math.hypot(mouse.x - closest.body.position.x, mouse.y - closest.body.position.y);
     for (const part of player.allBodyParts) {
@@ -165,12 +155,11 @@ Events.on(engine, 'beforeUpdate', function () {
         closestDist = dist;
       }
     }
-    // Apply force away from mouse (creative jumps any time)
     let dx = closest.body.position.x - mouse.x;
     let dy = closest.body.position.y - mouse.y;
     let mag = Math.hypot(dx, dy) || 1;
     Body.applyForce(closest.body, closest.body.position, { x: dx / mag * 0.16, y: dy / mag * 0.16 });
-    keys['w'] = false; // Only jump once per press
+    keys['w'] = false;
   }
 
   // Mini dash (Z) towards mouse from torso, with cooldown
@@ -178,9 +167,8 @@ Events.on(engine, 'beforeUpdate', function () {
     let dx = mouse.x - player.torso.position.x;
     let dy = mouse.y - player.torso.position.y;
     let mag = Math.hypot(dx, dy) || 1;
-    // Smaller burst for mini dash
     Body.applyForce(player.torso, player.torso.position, { x: dx / mag * 0.25, y: dy / mag * 0.25 });
-    dashCooldown = dashCooldownTime; // 1.5s at 60fps
+    dashCooldown = dashCooldownTime;
     keys['z'] = false;
   }
   if (dashCooldown > 0) dashCooldown--;
@@ -193,7 +181,6 @@ Events.on(engine, 'beforeUpdate', function () {
   Body.setAngle(player.lowerArmR, angle);
 });
 
-// Advanced Bot AI (same as before)
 setInterval(() => {
   const dx = player.torso.position.x - bot.torso.position.x;
   const dy = player.torso.position.y - bot.torso.position.y;
@@ -213,17 +200,14 @@ setInterval(() => {
     Body.applyForce(bot.torso, bot.torso.position, { x: 0.03 * (Math.random() - 0.5), y: -0.12 });
   }
 
-  // Sword aims at player torso
   let armOrigin = bot.upperArmR.position;
   let angle = Math.atan2(player.torso.position.y - armOrigin.y, player.torso.position.x - armOrigin.x);
   Body.setAngle(bot.upperArmR, angle);
   Body.setAngle(bot.lowerArmR, angle);
 }, 70);
 
-// Sword collision detection and damage
 Events.on(engine, 'collisionStart', event => {
   event.pairs.forEach(pair => {
-    // Player sword hits bot
     if (pair.bodyA === player.sword && bot.parts.includes(pair.bodyB)) {
       const speed = Matter.Vector.magnitude(player.sword.velocity);
       if (speed > 2) {
@@ -236,7 +220,6 @@ Events.on(engine, 'collisionStart', event => {
         botHealth -= Math.min(20, Math.round(speed * 2));
       }
     }
-    // Bot sword hits player
     if (pair.bodyA === bot.sword && player.parts.includes(pair.bodyB)) {
       const speed = Matter.Vector.magnitude(bot.sword.velocity);
       if (speed > 2) {
@@ -252,7 +235,6 @@ Events.on(engine, 'collisionStart', event => {
   });
 });
 
-// Health reset if someone is "KO'd"
 Events.on(engine, 'afterUpdate', function () {
   if (playerHealth <= 0 || botHealth <= 0) {
     setTimeout(() => {
@@ -266,7 +248,6 @@ Events.on(engine, 'afterUpdate', function () {
   }
 });
 
-// Draw health bars, KO message, HUD, and visible roof
 const ctx = canvas.getContext('2d');
 function drawHUD() {
   ctx.save();
@@ -275,18 +256,16 @@ function drawHUD() {
   ctx.fillStyle = "#fff";
   ctx.fillText(`You`, 40, 40);
   ctx.fillText(`Bot`, width - 90, 40);
-  // Health bars
   ctx.fillStyle = "#f44";
   ctx.fillRect(90, 18, Math.max(0, playerHealth * 2), 22);
-  ctx.fillStyle = "#fa4";
+  ctx.fillStyle = "#36f";
   ctx.fillRect(width - 290, 18, Math.max(0, botHealth * 2), 22);
   ctx.strokeStyle = "#fff";
   ctx.strokeRect(90, 18, 200, 22);
   ctx.strokeRect(width - 290, 18, 200, 22);
-  // KO message
   if (playerHealth <= 0) {
     ctx.font = "48px Arial";
-    ctx.fillStyle = "#fa4";
+    ctx.fillStyle = "#36f";
     ctx.fillText("Bot Wins!", width / 2 - 110, 60);
   }
   if (botHealth <= 0) {
@@ -294,20 +273,17 @@ function drawHUD() {
     ctx.fillStyle = "#f44";
     ctx.fillText("You Win!", width / 2 - 110, 60);
   }
-  // Dash cooldown indicator
   if (dashCooldown > 0) {
     ctx.font = "18px Arial";
     ctx.fillStyle = "#ff0";
     ctx.fillText(`Dash Cooldown: ${(dashCooldown / 60).toFixed(1)}s`, 280, 40);
   }
-  // Instructions
   ctx.font = "18px Arial";
   ctx.fillStyle = "#fff";
   ctx.fillText("A/D = move | W = jump from nearest body part | Z = mini dash | Sword aims at mouse", width / 2 - 310, 22);
   ctx.restore();
 }
 
-// Draw the visible roof as a bright bar
 function drawRoofBar() {
   ctx.save();
   ctx.fillStyle = "#e0e048";
@@ -320,5 +296,3 @@ function drawRoofBar() {
   drawHUD();
   requestAnimationFrame(animateHUD);
 })();
-
-// -- End of game.js --
