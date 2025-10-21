@@ -1,4 +1,4 @@
-// Ragdoll Sword Duel Game with Mini Dash, Visible Roof, and Dash Cooldown
+// Ragdoll Sword Duel - Improved Wall Sticking Prevention, Player is Red
 
 const { Engine, Render, Runner, World, Bodies, Body, Constraint, Composite, Events, Vector } = Matter;
 
@@ -11,48 +11,52 @@ const engine = Engine.create();
 const world = engine.world;
 engine.gravity.y = 0.7; // Less gravity for floatier movement
 
-// Renderer
-const render = Render.create({
-  canvas: canvas,
-  engine: engine,
-  options: {
-    width: width,
-    height: height,
-    wireframes: false,
-    background: '#333'
-  }
-});
-Render.run(render);
-const runner = Runner.create();
-Runner.run(runner, engine);
+// Wall/ground/roof options for less sticking
+const staticPhysicsOpts = {
+  isStatic: true,
+  restitution: 0.25,
+  friction: 0.8,
+  frictionStatic: 1.0,
+  slop: 0.8,
+  render: { fillStyle: "#666" }
+};
+// Roof is yellow and visible
+const roofPhysicsOpts = {
+  isStatic: true,
+  restitution: 0.25,
+  friction: 0.8,
+  frictionStatic: 1.0,
+  slop: 0.8,
+  render: { fillStyle: "#e0e048" }
+};
 
-// Ground, roof, and walls (roof is now more visible)
-const ground = Bodies.rectangle(width / 2, height - 20, width, 40, { isStatic: true, render: { fillStyle: "#666" } });
-const roof = Bodies.rectangle(width / 2, 24, width, 48, { isStatic: true, render: { fillStyle: "#e0e048" } }); // visible, thick, yellowish
-const leftWall = Bodies.rectangle(0, height / 2, 40, height, { isStatic: true, render: { fillStyle: "#666" } });
-const rightWall = Bodies.rectangle(width, height / 2, 40, height, { isStatic: true, render: { fillStyle: "#666" } });
+const ground = Bodies.rectangle(width / 2, height - 20, width, 40, staticPhysicsOpts);
+const roof = Bodies.rectangle(width / 2, 24, width, 48, roofPhysicsOpts);
+const leftWall = Bodies.rectangle(0, height / 2, 40, height, staticPhysicsOpts);
+const rightWall = Bodies.rectangle(width, height / 2, 40, height, staticPhysicsOpts);
 World.add(world, [ground, roof, leftWall, rightWall]);
 
 // Helper: create a ragdoll with sword
 function createRagdoll(x, y, color = "#fff", swordColor = "#ff0") {
-  const head = Bodies.circle(x, y - 70, 18, { render: { fillStyle: color } });
-  const torso = Bodies.rectangle(x, y - 30, 16, 48, { chamfer: { radius: 8 }, render: { fillStyle: color } });
-  const upperArmL = Bodies.rectangle(x - 22, y - 40, 32, 10, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const upperArmR = Bodies.rectangle(x + 22, y - 40, 32, 10, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const lowerArmL = Bodies.rectangle(x - 42, y - 40, 28, 10, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const lowerArmR = Bodies.rectangle(x + 42, y - 40, 28, 10, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const handL = Bodies.circle(x - 56, y - 40, 8, { render: { fillStyle: color } });
-  const handR = Bodies.circle(x + 56, y - 40, 8, { render: { fillStyle: color } });
-  const upperLegL = Bodies.rectangle(x - 10, y + 8, 12, 32, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const upperLegR = Bodies.rectangle(x + 10, y + 8, 12, 32, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const lowerLegL = Bodies.rectangle(x - 10, y + 34, 12, 26, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const lowerLegR = Bodies.rectangle(x + 10, y + 34, 12, 26, { chamfer: { radius: 5 }, render: { fillStyle: color } });
-  const footL = Bodies.circle(x - 10, y + 50, 8, { render: { fillStyle: color } });
-  const footR = Bodies.circle(x + 10, y + 50, 8, { render: { fillStyle: color } });
+  const bodyOpts = { restitution: 0.25, friction: 0.7, frictionStatic: 1.0, slop: 0.8, render: { fillStyle: color } };
+  const head = Bodies.circle(x, y - 70, 18, bodyOpts);
+  const torso = Bodies.rectangle(x, y - 30, 16, 48, { ...bodyOpts, chamfer: { radius: 8 } });
+  const upperArmL = Bodies.rectangle(x - 22, y - 40, 32, 10, { ...bodyOpts, chamfer: { radius: 5 } });
+  const upperArmR = Bodies.rectangle(x + 22, y - 40, 32, 10, { ...bodyOpts, chamfer: { radius: 5 } });
+  const lowerArmL = Bodies.rectangle(x - 42, y - 40, 28, 10, { ...bodyOpts, chamfer: { radius: 5 } });
+  const lowerArmR = Bodies.rectangle(x + 42, y - 40, 28, 10, { ...bodyOpts, chamfer: { radius: 5 } });
+  const handL = Bodies.circle(x - 56, y - 40, 8, bodyOpts);
+  const handR = Bodies.circle(x + 56, y - 40, 8, bodyOpts);
+  const upperLegL = Bodies.rectangle(x - 10, y + 8, 12, 32, { ...bodyOpts, chamfer: { radius: 5 } });
+  const upperLegR = Bodies.rectangle(x + 10, y + 8, 12, 32, { ...bodyOpts, chamfer: { radius: 5 } });
+  const lowerLegL = Bodies.rectangle(x - 10, y + 34, 12, 26, { ...bodyOpts, chamfer: { radius: 5 } });
+  const lowerLegR = Bodies.rectangle(x + 10, y + 34, 12, 26, { ...bodyOpts, chamfer: { radius: 5 } });
+  const footL = Bodies.circle(x - 10, y + 50, 8, bodyOpts);
+  const footR = Bodies.circle(x + 10, y + 50, 8, bodyOpts);
 
   // Sword: attached to right hand (handR)
   const sword = Bodies.rectangle(x + 76, y - 40, 60, 8,
-    { density: 0.005, chamfer: { radius: 2 }, render: { fillStyle: swordColor } });
+    { density: 0.005, chamfer: { radius: 2 }, restitution: 0.25, friction: 0.7, slop: 0.8, render: { fillStyle: swordColor } });
   const swordConstraint = Constraint.create({
     bodyA: handR,
     pointA: { x: 6, y: 0 },
@@ -110,8 +114,8 @@ function createRagdoll(x, y, color = "#fff", swordColor = "#ff0") {
   };
 }
 
-// Player and bot ragdolls
-const player = createRagdoll(180, height - 120, "#59f", "#fff");
+// Player (red) and bot (orange)
+const player = createRagdoll(180, height - 120, "#f44", "#fff");
 const bot = createRagdoll(width - 180, height - 120, "#fa4", "#ff2222");
 
 // Health
@@ -272,7 +276,7 @@ function drawHUD() {
   ctx.fillText(`You`, 40, 40);
   ctx.fillText(`Bot`, width - 90, 40);
   // Health bars
-  ctx.fillStyle = "#59f";
+  ctx.fillStyle = "#f44";
   ctx.fillRect(90, 18, Math.max(0, playerHealth * 2), 22);
   ctx.fillStyle = "#fa4";
   ctx.fillRect(width - 290, 18, Math.max(0, botHealth * 2), 22);
@@ -287,7 +291,7 @@ function drawHUD() {
   }
   if (botHealth <= 0) {
     ctx.font = "48px Arial";
-    ctx.fillStyle = "#59f";
+    ctx.fillStyle = "#f44";
     ctx.fillText("You Win!", width / 2 - 110, 60);
   }
   // Dash cooldown indicator
