@@ -1,4 +1,4 @@
-// Ragdoll Sword Duel Game with Freeform Jumping, Mouse-Aimed Sword, and Mini Dash
+// Ragdoll Sword Duel Game with Mini Dash, Visible Roof, and Dash Cooldown
 
 const { Engine, Render, Runner, World, Bodies, Body, Constraint, Composite, Events, Vector } = Matter;
 
@@ -26,9 +26,9 @@ Render.run(render);
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-// Ground, roof, and walls
+// Ground, roof, and walls (roof is now more visible)
 const ground = Bodies.rectangle(width / 2, height - 20, width, 40, { isStatic: true, render: { fillStyle: "#666" } });
-const roof = Bodies.rectangle(width / 2, 20, width, 40, { isStatic: true, render: { fillStyle: "#666" } });
+const roof = Bodies.rectangle(width / 2, 24, width, 48, { isStatic: true, render: { fillStyle: "#e0e048" } }); // visible, thick, yellowish
 const leftWall = Bodies.rectangle(0, height / 2, 40, height, { isStatic: true, render: { fillStyle: "#666" } });
 const rightWall = Bodies.rectangle(width, height / 2, 40, height, { isStatic: true, render: { fillStyle: "#666" } });
 World.add(world, [ground, roof, leftWall, rightWall]);
@@ -135,8 +135,9 @@ canvas.addEventListener('mousemove', e => {
   mouse.y = (e.clientY - rect.top) * (height / rect.height);
 });
 
-// Mini dash cooldown
+// Mini dash cooldown (1.5 seconds at 60fps = 90 frames)
 let dashCooldown = 0;
+let dashCooldownTime = 90;
 
 // Move player ragdoll
 Events.on(engine, 'beforeUpdate', function () {
@@ -173,9 +174,9 @@ Events.on(engine, 'beforeUpdate', function () {
     let dx = mouse.x - player.torso.position.x;
     let dy = mouse.y - player.torso.position.y;
     let mag = Math.hypot(dx, dy) || 1;
-    // Big initial burst, then cooldown
-    Body.applyForce(player.torso, player.torso.position, { x: dx / mag * 1.5, y: dy / mag * 1.5 });
-    dashCooldown = 40; // Cooldown frames
+    // Smaller burst for mini dash
+    Body.applyForce(player.torso, player.torso.position, { x: dx / mag * 0.25, y: dy / mag * 0.25 });
+    dashCooldown = dashCooldownTime; // 1.5s at 60fps
     keys['z'] = false;
   }
   if (dashCooldown > 0) dashCooldown--;
@@ -261,7 +262,7 @@ Events.on(engine, 'afterUpdate', function () {
   }
 });
 
-// Draw health bars & KO message
+// Draw health bars, KO message, HUD, and visible roof
 const ctx = canvas.getContext('2d');
 function drawHUD() {
   ctx.save();
@@ -289,13 +290,29 @@ function drawHUD() {
     ctx.fillStyle = "#59f";
     ctx.fillText("You Win!", width / 2 - 110, 60);
   }
+  // Dash cooldown indicator
+  if (dashCooldown > 0) {
+    ctx.font = "18px Arial";
+    ctx.fillStyle = "#ff0";
+    ctx.fillText(`Dash Cooldown: ${(dashCooldown / 60).toFixed(1)}s`, 280, 40);
+  }
   // Instructions
   ctx.font = "18px Arial";
   ctx.fillStyle = "#fff";
-  ctx.fillText("A/D = move | W = jump from nearest body part towards mouse | Z = dash | Sword aims at mouse", width / 2 - 310, 22);
+  ctx.fillText("A/D = move | W = jump from nearest body part | Z = mini dash | Sword aims at mouse", width / 2 - 310, 22);
   ctx.restore();
 }
+
+// Draw the visible roof as a bright bar
+function drawRoofBar() {
+  ctx.save();
+  ctx.fillStyle = "#e0e048";
+  ctx.fillRect(0, 0, width, 48);
+  ctx.restore();
+}
+
 (function animateHUD() {
+  drawRoofBar();
   drawHUD();
   requestAnimationFrame(animateHUD);
 })();
